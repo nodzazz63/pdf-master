@@ -16,7 +16,61 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json({ limit: '100mb' }));
 app.use(express.urlencoded({ extended: true, limit: '100mb' }));
-app.use(express.static(path.join(__dirname, 'public')));
+
+// Static file serving (check both public directory and root)
+const publicDir = path.join(__dirname, 'public');
+if (fs.existsSync(publicDir)) {
+    app.use(express.static(publicDir));
+}
+app.use(express.static(__dirname));
+
+// Explicit route for homepage
+app.get('/', (req, res) => {
+    const publicIndex = path.join(__dirname, 'public', 'index.html');
+    const rootIndex = path.join(__dirname, 'index.html');
+    
+    if (fs.existsSync(publicIndex)) {
+        return res.sendFile(publicIndex);
+    } else if (fs.existsSync(rootIndex)) {
+        return res.sendFile(rootIndex);
+    } else {
+        let dirFiles = [];
+        try {
+            dirFiles = fs.readdirSync(__dirname);
+        } catch (e) {
+            dirFiles = [e.message];
+        }
+        res.status(404).send(`
+            <!DOCTYPE html>
+            <html lang="th">
+            <head>
+                <meta charset="UTF-8">
+                <title>ไม่พบไฟล์หน้าเว็บ</title>
+                <style>
+                    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #f8fafc; padding: 40px 20px; display: flex; justify-content: center; align-items: center; min-height: 80vh; margin: 0; }
+                    .card { background: #1e293b; border: 1px solid #334155; padding: 32px; border-radius: 16px; max-width: 600px; width: 100%; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5); }
+                    h1 { color: #f43f5e; margin-top: 0; font-size: 1.5rem; }
+                    p { line-height: 1.6; color: #cbd5e1; }
+                    .code-box { background: #0b0f19; padding: 14px 18px; border-radius: 8px; font-family: monospace; font-size: 0.9rem; color: #38bdf8; margin: 15px 0; overflow-x: auto; }
+                    .badge { background: #22c55e22; color: #4ade80; padding: 4px 10px; border-radius: 999px; font-size: 0.8rem; font-weight: bold; }
+                </style>
+            </head>
+            <body>
+                <div class="card">
+                    <span class="badge">🚀 เซิร์ฟเวอร์ทำงานสำเร็จแล้ว!</span>
+                    <h1>⚠️ แต่ยังไม่พบโฟลเดอร์ public บน GitHub</h1>
+                    <p>ระบบ Backend ทำงานได้สมบูรณ์แล้ว แต่ยังไม่มีไฟล์หน้าเว็บ (UI) อัปโหลดขึ้นมาบน GitHub ครับ</p>
+                    <p><b>วิธีแก้ไข:</b> ให้เข้าไปที่ Repository บน GitHub แล้วลากโฟลเดอร์ <code>public</code> ทั้งโฟลเดอร์ขึ้นไป</p>
+                    <div class="code-box">
+                        ไฟล์ที่พบบนเซิร์ฟเวอร์ขณะนี้:<br>
+                        ${dirFiles.join(', ')}
+                    </div>
+                </div>
+            </body>
+            </html>
+        `);
+    }
+});
 
 // Multer in-memory storage (high speed, no stale files on disk)
 const storage = multer.memoryStorage();
@@ -750,7 +804,7 @@ app.post('/api/image/info', upload.single('file'), async (req, res) => {
 });
 
 // Start server
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
     console.log(`====================================================`);
     console.log(`🚀 PDF & Image Master กำลังทำงานที่: http://localhost:${PORT}`);
     console.log(`====================================================`);
